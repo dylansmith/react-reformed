@@ -6,9 +6,10 @@ import getComponentName from './_internal/getComponentName'
 const getAllValidationErrors = (schema, props, prevResults) => {
   return Object.keys(schema).reduce((acc, key) => {
     const result = getValidationErrorsForProp(schema, props, key, prevResults)
-    if (!result) return acc;
+    if (!result) return acc
+
     return assign({}, acc, {
-      isValid: (result && !result.errors.length) && acc.isValid,
+      isValid: !result.errors.length && acc.isValid,
       fields: assign({}, acc.fields, { [key]: result })
     })
   }, prevResults)
@@ -16,18 +17,30 @@ const getAllValidationErrors = (schema, props, prevResults) => {
 
 const getValidationErrorsForProp = (schema, props, key, prevResults) => {
   const errors = []
-  const { model, lastInputEvent } = props
+  const { model, lastInputEvent, inputFlags } = props
   const prevResult = prevResults.fields[key] || {}
   const value = model[key]
   const rules = schema[key]
+  const flags = inputFlags[key] || {}
   const updateOn = rules.updateOn || 'change'
 
-  const isLastInputEvent = (lastInputEvent.name === key)
-  const isInvalidEventType = (isLastInputEvent && updateOn !== lastInputEvent.type)
+  const isFirstEvaluation = (!prevResults.fields[key])
+  const isInteracted = (!!flags.dirty)
+  const isRelatedEvent = (lastInputEvent.name === key)
+  const isValidEventType = (lastInputEvent.type === updateOn)
   const isCurrentlyInvalid = (prevResult.isValid === false)
-  const skipValidation = (!isCurrentlyInvalid && isInvalidEventType)
 
-  if (skipValidation === true) return null
+  const shouldValidate = (
+    isInteracted &&
+    isRelatedEvent &&
+    (isValidEventType || isCurrentlyInvalid)
+  )
+
+  if (shouldValidate === false) {
+    return (isFirstEvaluation)
+      ? { isValid: true, errors: [] }
+      : prevResult
+  }
 
   const renderError = (condition, fallback) => {
     return typeof rules.formatError === 'function'
@@ -68,10 +81,10 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
 }
 
 const validateSchema = (schema) => (WrappedComponent) => {
-  let validationErrors = { isValid: true, fields: {} };
+  let validationErrors = { isValid: true, fields: {} }
 
   const validated = (props) => {
-    validationErrors = getAllValidationErrors(schema, props, validationErrors);
+    validationErrors = getAllValidationErrors(schema, props, validationErrors)
     return React.createElement(WrappedComponent, assign({}, props, {
       schema: validationErrors
     }))
