@@ -4,15 +4,19 @@ import hoistNonReactStatics from 'hoist-non-react-statics'
 import getComponentName from './_internal/getComponentName'
 
 const getAllValidationErrors = (schema, props, prevResults) => {
-  return Object.keys(schema).reduce((acc, key) => {
+  const results = Object.keys(schema).reduce((acc, key) => {
     const result = getValidationErrorsForProp(schema, props, key, prevResults)
     if (!result) return acc
-
     return assign({}, acc, {
-      isValid: !result.errors.length && acc.isValid,
       fields: assign({}, acc.fields, { [key]: result })
     })
   }, prevResults)
+
+  results.isValid = Object.keys(results.fields).reduce((acc, key) => {
+    return acc && results.fields[key].isChecked && results.fields[key].isValid
+  }, true)
+
+  return results
 }
 
 const getValidationErrorsForProp = (schema, props, key, prevResults) => {
@@ -29,16 +33,17 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
   const isRelatedEvent = (lastInputEvent.name === key)
   const isValidEventType = (lastInputEvent.type === updateOn)
   const isCurrentlyInvalid = (prevResult.isValid === false)
+  const isNotEmpty = (!!value)
 
   const shouldValidate = (
     isInteracted &&
     isRelatedEvent &&
     (isValidEventType || isCurrentlyInvalid)
-  )
+  ) || (!isInteracted && isNotEmpty)
 
   if (shouldValidate === false) {
     return (isFirstEvaluation)
-      ? { isValid: true, errors: [] }
+      ? { isChecked: false, isValid: true, errors: [] }
       : prevResult
   }
 
@@ -75,6 +80,7 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
   }
 
   return {
+    isChecked: true,
     isValid: !errors.length,
     errors
   }
