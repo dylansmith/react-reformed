@@ -13,6 +13,7 @@ const makeWrapper = (middleware) => (WrappedComponent) => {
       super(props, ctx)
       this.state = {
         model: props.initialModel || {},
+        lastInputEvent: {}
       }
     }
 
@@ -49,8 +50,18 @@ const makeWrapper = (middleware) => (WrappedComponent) => {
       return {
         name,
         value: this.state.model[name] || '',
-        onChange: this.bindToChangeEvent,
+        onChange: this.onInputEvent,
+        onBlur: this.onInputEvent,
+        onFocus: this.onInputEvent
       }
+    }
+
+    onInputEvent = (e) => {
+      const { target, type } = e
+      const { name } = target
+      const lastInputEvent = { name, target, type }
+      this.setState({ lastInputEvent })
+      if (type === 'change') this.bindToChangeEvent(e)
     }
 
     render () {
@@ -60,6 +71,7 @@ const makeWrapper = (middleware) => (WrappedComponent) => {
         model: this.state.model,
         setProperty: this.setProperty,
         setModel: this.setModel,
+        lastInputEvent: this.state.lastInputEvent
       })
       // SIDE EFFECT-ABLE. Just for developer convenience and expirementation.
       const finalProps = typeof middleware === 'function'

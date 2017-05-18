@@ -81,6 +81,7 @@ const createFormContainer = compose(
     username: {
       required: true,
       maxLength: 8,
+      updateOn: 'blur',
       // note: you can optionally generate custom errors via `formatError`
       // by providing a string or a function that receives context
       formatError: (context) => {
