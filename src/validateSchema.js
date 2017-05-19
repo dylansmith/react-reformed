@@ -4,19 +4,35 @@ import hoistNonReactStatics from 'hoist-non-react-statics'
 import getComponentName from './_internal/getComponentName'
 
 const getAllValidationErrors = (schema, props, prevResults) => {
-  const results = Object.keys(schema).reduce((acc, key) => {
+  const fields = Object.keys(schema).reduce((acc, key) => {
     const result = getValidationErrorsForProp(schema, props, key, prevResults)
     if (!result) return acc
-    return assign({}, acc, {
-      fields: assign({}, acc.fields, { [key]: result })
+    return assign({}, acc, { [key]: result })
+  }, prevResults.fields)
+
+  // Calculate aggregate flags
+  const anyTrue = (prev, curr) => prev === true ? true : curr
+  const anyFalse = (prev, curr) => prev === false ? false : curr
+  const evaluators = {
+    isValid: anyFalse,
+    dirty: anyTrue,
+    pristine: anyFalse,
+    touched: anyTrue,
+    untouched: anyFalse
+  }
+
+  const form = Object.keys(fields).reduce((acc, key) => {
+    Object.keys(evaluators).map(flag => {
+      acc[flag] = evaluators[flag](acc[flag], fields[key][flag])
     })
-  }, prevResults)
+    return acc
+  }, {})
 
-  results.isValid = Object.keys(results.fields).reduce((acc, key) => {
-    return acc && results.fields[key].isChecked && results.fields[key].isValid
-  }, true)
-
-  return results
+  return {
+    isValid: form.isValid,
+    form,
+    fields
+  }
 }
 
 const getValidationErrorsForProp = (schema, props, key, prevResults) => {
@@ -28,23 +44,21 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
   const flags = inputFlags[key] || {}
   const updateOn = rules.updateOn || 'change'
 
-  const isFirstEvaluation = (!prevResults.fields[key])
-  const isInteracted = (!!flags.dirty)
+  const isPristine = (flags.pristine)
   const isRelatedEvent = (lastInputEvent.name === key)
   const isValidEventType = (lastInputEvent.type === updateOn)
   const isCurrentlyInvalid = (prevResult.isValid === false)
-  const isNotEmpty = (!!value)
+  const isFirstEvaluation = (key in prevResults.fields === false)
 
   const shouldValidate = (
-    isInteracted &&
-    isRelatedEvent &&
-    (isValidEventType || isCurrentlyInvalid)
-  ) || (!isInteracted && isNotEmpty)
+    isPristine ||
+    ( isRelatedEvent && (isValidEventType || isCurrentlyInvalid) )
+  )
 
   if (shouldValidate === false) {
     return (isFirstEvaluation)
-      ? { isChecked: false, isValid: true, errors: [] }
-      : prevResult
+      ? { isValid: true, errors: [], ...flags }
+      : assign({}, prevResult, flags)
   }
 
   const renderError = (condition, fallback) => {
@@ -80,9 +94,9 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
   }
 
   return {
-    isChecked: true,
     isValid: !errors.length,
-    errors
+    errors,
+    ...flags
   }
 }
 
