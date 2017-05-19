@@ -37,7 +37,12 @@ const makeWrapper = (middleware) => (WrappedComponent) => {
 
     initInputFlags = (name) => {
       if (!this.inputFlags[name]) {
-        this.setInputFlags(name, { dirty: false, touched: false })
+        this.setInputFlags(name, {
+          dirty: false,
+          pristine: true,
+          touched: false,
+          untouched: true
+        })
       }
     }
 
