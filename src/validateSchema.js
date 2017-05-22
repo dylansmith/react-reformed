@@ -13,7 +13,7 @@ const getAllValidationErrors = (schema, props, prevResults) => {
   // Calculate aggregate flags
   const anyTrue = (prev, curr) => prev === true ? true : curr
   const anyFalse = (prev, curr) => prev === false ? false : curr
-  const evaluators = {
+  const aggregators = {
     isValid: anyFalse,
     dirty: anyTrue,
     pristine: anyFalse,
@@ -22,8 +22,8 @@ const getAllValidationErrors = (schema, props, prevResults) => {
   }
 
   const form = Object.keys(fields).reduce((acc, key) => {
-    Object.keys(evaluators).map(flag => {
-      acc[flag] = evaluators[flag](acc[flag], fields[key][flag])
+    Object.keys(aggregators).map(flag => {
+      acc[flag] = aggregators[flag](acc[flag], fields[key][flag])
     })
     return acc
   }, {})
@@ -101,12 +101,16 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
 }
 
 const validateSchema = (schema) => (WrappedComponent) => {
-  let validationErrors = { isValid: true, fields: {} }
+  let cachedSchema = {
+    isValid: true,
+    form: {},
+    fields: {}
+  }
 
   const validated = (props) => {
-    validationErrors = getAllValidationErrors(schema, props, validationErrors)
+    cachedSchema = getAllValidationErrors(schema, props, cachedSchema)
     return React.createElement(WrappedComponent, assign({}, props, {
-      schema: validationErrors
+      schema: cachedSchema
     }))
   }
   validated.displayName = `ValidateSchema(${getComponentName(WrappedComponent)})`
