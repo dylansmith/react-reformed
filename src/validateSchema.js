@@ -61,9 +61,11 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
       : assign({}, prevResult, flags)
   }
 
+  const ctx = { key, value, rules, schema, model }
+
   const renderError = (condition, fallback) => {
     return typeof rules.formatError === 'function'
-      ? rules.formatError({ key, value, condition, rules, schema, model })
+      ? rules.formatError({ ...ctx, condition })
       : fallback
   }
 
@@ -87,7 +89,7 @@ const getValidationErrorsForProp = (schema, props, key, prevResults) => {
     let error
     rules.test(value, (msg) => {
       error = msg
-    })
+    }, ctx)
     if (error) {
       errors.push(error)
     }
